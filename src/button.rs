@@ -1,21 +1,39 @@
 use defmt::debug;
-use embassy_rp::{Peripherals, gpio::Input};
+use embassy_rp::{
+    Peri, Peripherals,
+    gpio::{AnyPin, Input, Pin},
+};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::{Duration, Instant, Ticker};
 
 const DEBOUNCE_TIME: Duration = Duration::from_millis(4);
 const POLL_PERIOD: Duration = Duration::from_micros(250);
 
-pub struct Button<'a> {
+struct Button<'a> {
     pin: Input<'a>,
     output_index: i16,
     pressed: bool,
     transition_time: Instant,
 }
 
-fn new_button<'a>(pin: Input<'a>, output_index: i16) -> Button<'a> {
+pub struct ButtonGPIO {
+    pub key_1: Peri<'static, AnyPin>,
+    pub key_2: Peri<'static, AnyPin>,
+    pub key_3: Peri<'static, AnyPin>,
+    pub key_4: Peri<'static, AnyPin>,
+    pub key_5: Peri<'static, AnyPin>,
+    pub key_6: Peri<'static, AnyPin>,
+    pub key_7: Peri<'static, AnyPin>,
+
+    pub e_1: Peri<'static, AnyPin>,
+    pub e_2: Peri<'static, AnyPin>,
+    pub e_3: Peri<'static, AnyPin>,
+    pub e_4: Peri<'static, AnyPin>,
+}
+
+fn new_button<'a>(pin: Peri<'static, AnyPin>, output_index: i16) -> Button<'a> {
     Button {
-        pin: pin,
+        pin: Input::new(pin, embassy_rp::gpio::Pull::Up),
         output_index: output_index,
         pressed: false,
         transition_time: Instant::from_secs(0),
@@ -23,19 +41,19 @@ fn new_button<'a>(pin: Input<'a>, output_index: i16) -> Button<'a> {
 }
 
 #[embassy_executor::task]
-pub async fn button_task(p: Peripherals, output: &'static Signal<CriticalSectionRawMutex, u16>) {
+pub async fn button_task(gpio: ButtonGPIO, output: &'static Signal<CriticalSectionRawMutex, u16>) {
     let mut buttons = [
-        new_button(Input::new(p.PIN_2, embassy_rp::gpio::Pull::Up), 0),
-        new_button(Input::new(p.PIN_3, embassy_rp::gpio::Pull::Up), 1),
-        new_button(Input::new(p.PIN_4, embassy_rp::gpio::Pull::Up), 2),
-        new_button(Input::new(p.PIN_5, embassy_rp::gpio::Pull::Up), 4),
-        new_button(Input::new(p.PIN_6, embassy_rp::gpio::Pull::Up), 5),
-        new_button(Input::new(p.PIN_7, embassy_rp::gpio::Pull::Up), 6),
-        new_button(Input::new(p.PIN_8, embassy_rp::gpio::Pull::Up), 3),
-        new_button(Input::new(p.PIN_9, embassy_rp::gpio::Pull::Up), 9),
-        new_button(Input::new(p.PIN_10, embassy_rp::gpio::Pull::Up), 10),
-        new_button(Input::new(p.PIN_11, embassy_rp::gpio::Pull::Up), 11),
-        new_button(Input::new(p.PIN_13, embassy_rp::gpio::Pull::Up), 8),
+        new_button(gpio.key_1, 0),
+        new_button(gpio.key_2, 1),
+        new_button(gpio.key_3, 2),
+        new_button(gpio.key_4, 3),
+        new_button(gpio.key_5, 4),
+        new_button(gpio.key_6, 5),
+        new_button(gpio.key_7, 6),
+        new_button(gpio.e_1, 8),
+        new_button(gpio.e_2, 9),
+        new_button(gpio.e_3, 10),
+        new_button(gpio.e_4, 11),
     ];
 
     let mut ticker = Ticker::every(POLL_PERIOD);
