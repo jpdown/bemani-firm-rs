@@ -62,7 +62,6 @@ pub async fn button_task(gpio: ButtonGPIO, output: &'static Signal<CriticalSecti
         poll_buttons(&mut buttons);
         let bits = buttons_to_bitstring(buttons.as_slice());
         output.signal(bits);
-        debug!("buttons state {:b}", bits);
         ticker.next().await;
     }
 }

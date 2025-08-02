@@ -2,20 +2,24 @@
 #![no_main]
 
 mod button;
+mod encoder;
 mod usb;
 
 use defmt::*;
 use embassy_executor::Spawner;
+use embassy_rp::pac::pio::Pio;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 use {defmt_rtt as _, panic_probe as _};
 
 use crate::{
     button::{ButtonGPIO, button_task},
+    encoder::encoder_task,
     usb::usb_task,
 };
 
 static BUTTON_SIGNAL: Signal<CriticalSectionRawMutex, u16> = Signal::new();
+static ENCODER_SIGNAL: Signal<CriticalSectionRawMutex, u8> = Signal::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -36,6 +40,7 @@ async fn main(spawner: Spawner) {
         e_4: p.PIN_11.into(),
     };
 
-    unwrap!(spawner.spawn(usb_task(p.USB, &BUTTON_SIGNAL)));
+    unwrap!(spawner.spawn(usb_task(p.USB, &BUTTON_SIGNAL, &ENCODER_SIGNAL)));
     unwrap!(spawner.spawn(button_task(buttons, &BUTTON_SIGNAL)));
+    unwrap!(spawner.spawn(encoder_task(p.PIO0, p.PIN_0, p.PIN_1, &ENCODER_SIGNAL)))
 }

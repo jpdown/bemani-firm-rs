@@ -56,6 +56,7 @@ bind_interrupts!(struct Irqs {
 pub async fn usb_task(
     usb: Peri<'static, USB>,
     buttons: &'static Signal<CriticalSectionRawMutex, u16>,
+    encoder: &'static Signal<CriticalSectionRawMutex, u8>,
 ) {
     let driver = Driver::new(usb, Irqs);
 
@@ -102,11 +103,18 @@ pub async fn usb_task(
     let (reader, mut writer) = hid.split();
 
     let in_fut = async {
+        let mut encoder_reading = 0;
+
         loop {
             let buttons_report = buttons.wait().await;
 
+            encoder_reading = match encoder.try_take() {
+                None => encoder_reading,
+                Some(x) => x,
+            };
+
             let report = KonamiIIDXReport {
-                tt: 0,
+                tt: encoder_reading,
                 buttons: (buttons_report & 0xFF) as u8,
                 buttons_menu: ((buttons_report & 0xFF00) >> 8) as u8,
             };
