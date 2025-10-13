@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(generic_const_exprs)]
 
 mod button;
 mod encoder;
@@ -16,6 +17,7 @@ use {defmt_rtt as _, panic_probe as _};
 use crate::{
     button::{ButtonGPIO, button_task},
     encoder::encoder_task,
+    rgb::RGBButtonPins,
     usb::usb_task,
 };
 
@@ -41,8 +43,20 @@ async fn main(spawner: Spawner) {
         e_4: p.PIN_11.into(),
     };
 
+    let rgb_buttons = RGBButtonPins {
+        key_1: p.PIN_20,
+        key_2: p.PIN_21,
+        key_3: p.PIN_22,
+    };
+
     unwrap!(spawner.spawn(usb_task(p.USB, &BUTTON_SIGNAL, &ENCODER_SIGNAL)));
     unwrap!(spawner.spawn(button_task(buttons, &BUTTON_SIGNAL)));
     unwrap!(spawner.spawn(encoder_task(p.PIO0, p.PIN_0, p.PIN_1, &ENCODER_SIGNAL)));
-    unwrap!(spawner.spawn(rgb_task(p.PIO1, p.PIN_28, p.DMA_CH0)));
+    unwrap!(spawner.spawn(rgb_task(
+        p.PIO1,
+        p.PIN_28,
+        rgb_buttons,
+        p.DMA_CH0,
+        p.DMA_CH1
+    )));
 }
