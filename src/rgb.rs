@@ -5,14 +5,11 @@ use embassy_rp::bind_interrupts;
 use embassy_rp::clocks::clk_sys_freq;
 use embassy_rp::dma::AnyChannel;
 use embassy_rp::dma::Channel;
-use embassy_rp::gpio::AnyPin;
 use embassy_rp::peripherals::DMA_CH0;
 use embassy_rp::peripherals::DMA_CH1;
 use embassy_rp::peripherals::PIN_20;
 use embassy_rp::peripherals::PIN_21;
 use embassy_rp::peripherals::PIN_22;
-use embassy_rp::peripherals::PIN_26;
-use embassy_rp::peripherals::PIN_27;
 use embassy_rp::peripherals::PIN_28;
 use embassy_rp::peripherals::PIO1;
 use embassy_rp::pio::Common;
@@ -24,7 +21,6 @@ use embassy_rp::pio::InterruptHandler;
 use embassy_rp::pio::LoadedProgram;
 use embassy_rp::pio::Pin;
 use embassy_rp::pio::Pio;
-use embassy_rp::pio::PioPin;
 use embassy_rp::pio::ShiftConfig;
 use embassy_rp::pio::ShiftDirection;
 use embassy_rp::pio::StateMachine;
@@ -35,7 +31,6 @@ use embassy_time::Duration;
 use embassy_time::Ticker;
 use embassy_time::Timer;
 use fixed::traits::ToFixed;
-use fixed::types::U24F8;
 use smart_leds::RGB8;
 use smart_leds::hsv::Hsv;
 use smart_leds::hsv::hsv2rgb;
@@ -133,9 +128,9 @@ impl<'d, T: Instance, const SM: usize, const NUM_STRIPS: usize>
 
         // Precompute the word bytes from the colors
         let mut words = [0u32; NUM_LEDS_PER_BUTTON * NUM_LED_BITS];
-        for led in 0..NUM_LEDS_PER_BUTTON {
-            for bit in 0..NUM_LED_BITS {
-                for strip in 0..NUM_STRIPS {
+        for strip in 0..NUM_STRIPS {
+            for led in 0..NUM_LEDS_PER_BUTTON {
+                for bit in 0..NUM_LED_BITS {
                     let colour = if bit < BITS_PER_COLOUR {
                         colours[strip][led].g
                     } else if bit < (2 * BITS_PER_COLOUR) {
@@ -147,7 +142,7 @@ impl<'d, T: Instance, const SM: usize, const NUM_STRIPS: usize>
                     let colour_bit_index = bit % BITS_PER_COLOUR;
 
                     // We want MSB first
-                    let colour_bit = (colour >> (NUM_LED_BITS - colour_bit_index)) & 0b1;
+                    let colour_bit = (colour >> (NUM_LED_BITS - colour_bit_index - 1)) & 0b1;
                     words[(led * NUM_LED_BITS) + bit] |= (colour_bit as u32) << strip;
                 }
             }
