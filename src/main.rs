@@ -8,7 +8,6 @@ mod usb;
 
 use defmt::*;
 use embassy_executor::Spawner;
-use embassy_rp::pac::pio::Pio;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 use rgb::rgb_task;

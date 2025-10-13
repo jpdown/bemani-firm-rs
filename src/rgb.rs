@@ -1,33 +1,14 @@
-use defmt::debug;
 use embassy_rp::Peri;
 use embassy_rp::bind_interrupts;
-use embassy_rp::clocks::clk_sys_freq;
-use embassy_rp::dma::AnyChannel;
-use embassy_rp::dma::Channel;
 use embassy_rp::peripherals::DMA_CH0;
 use embassy_rp::peripherals::PIN_28;
 use embassy_rp::peripherals::PIO1;
-use embassy_rp::pio::Common;
-use embassy_rp::pio::Config;
-use embassy_rp::pio::Direction;
-use embassy_rp::pio::FifoJoin;
-use embassy_rp::pio::Instance;
 use embassy_rp::pio::InterruptHandler;
-use embassy_rp::pio::LoadedProgram;
-use embassy_rp::pio::PinConfig;
 use embassy_rp::pio::Pio;
-use embassy_rp::pio::PioPin;
-use embassy_rp::pio::ShiftConfig;
-use embassy_rp::pio::ShiftDirection;
-use embassy_rp::pio::StateMachine;
-use embassy_rp::pio::program::pio_asm;
 use embassy_rp::pio_programs::ws2812::PioWs2812;
 use embassy_rp::pio_programs::ws2812::PioWs2812Program;
 use embassy_time::Duration;
 use embassy_time::Ticker;
-use embassy_time::Timer;
-use fixed::types::U24F8;
-use fixed_macro::types::U24F8;
 use smart_leds::RGB8;
 use smart_leds::hsv::Hsv;
 use smart_leds::hsv::hsv2rgb;
@@ -36,8 +17,8 @@ bind_interrupts!(struct Irqs {
     PIO1_IRQ_0 => InterruptHandler<PIO1>;
 });
 
-const HUE_CYCLE_TIME_MS: usize = 1000;
-const TICKER_TIME_MS: usize = 10;
+const HUE_CYCLE_TIME_MS: u64 = 1000;
+const TICKER_TIME_MS: u64 = HUE_CYCLE_TIME_MS / 256;
 
 #[embassy_executor::task]
 pub async fn rgb_task(
@@ -55,7 +36,7 @@ pub async fn rgb_task(
     let prg = PioWs2812Program::new(&mut common);
     let mut rgb_0 = PioWs2812::new(&mut common, sm0, dma, pin_28, &prg);
 
-    let mut ticker = Ticker::every(Duration::from_millis(10));
+    let mut ticker = Ticker::every(Duration::from_millis(TICKER_TIME_MS));
     let mut hue = 0;
     loop {
         let mut hsv = Hsv {

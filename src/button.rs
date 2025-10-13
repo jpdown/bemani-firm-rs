@@ -1,7 +1,6 @@
-use defmt::debug;
 use embassy_rp::{
-    Peri, Peripherals,
-    gpio::{AnyPin, Input, Pin},
+    Peri,
+    gpio::{AnyPin, Input},
 };
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::{Duration, Instant, Ticker};
@@ -34,7 +33,7 @@ pub struct ButtonGPIO {
 fn new_button<'a>(pin: Peri<'static, AnyPin>, output_index: i16) -> Button<'a> {
     Button {
         pin: Input::new(pin, embassy_rp::gpio::Pull::Up),
-        output_index: output_index,
+        output_index,
         pressed: false,
         transition_time: Instant::from_secs(0),
     }

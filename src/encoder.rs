@@ -1,8 +1,6 @@
 use defmt::debug;
-use defmt::info;
 use embassy_rp::Peri;
 use embassy_rp::bind_interrupts;
-use embassy_rp::gpio::AnyPin;
 use embassy_rp::peripherals::PIN_0;
 use embassy_rp::peripherals::PIN_1;
 use embassy_rp::peripherals::PIO0;
