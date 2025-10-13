@@ -86,6 +86,7 @@ dependencies = [
  "fixed",
  "fixed-macro",
  "panic-probe",
+ "smart-leds",
  "usbd-hid",
 ]
 
