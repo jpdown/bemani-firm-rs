@@ -39,7 +39,7 @@ bind_interrupts!(struct Irqs {
     PIO1_IRQ_0 => InterruptHandler<PIO1>;
 });
 
-const HUE_CYCLE_TIME_MS: u64 = 1000;
+const HUE_CYCLE_TIME_MS: u64 = 3500;
 const TICKER_TIME_MS: u64 = HUE_CYCLE_TIME_MS / 256;
 const T1: u8 = 2; // start bit
 const T2: u8 = 5; // data bit
@@ -185,7 +185,7 @@ pub async fn rgb_task(
         common.make_pio_pin(button_pins.key_3),
     ];
 
-    const NUM_LEDS: usize = 26;
+    const NUM_LEDS: usize = 49;
     let mut data = [RGB8::default(); NUM_LEDS];
     let mut data_buttons = [[RGB8::default(); NUM_LEDS_PER_BUTTON]; 3];
 
@@ -201,12 +201,12 @@ pub async fn rgb_task(
         let mut hsv = Hsv {
             hue,
             sat: 255,
-            val: 128,
+            val: 255,
         };
 
         for i in 0..NUM_LEDS {
             data[i] = hsv2rgb(hsv);
-            hsv.hue += 1;
+            hsv.hue += 255 / NUM_LEDS as u8;
         }
 
         hue += 1;
