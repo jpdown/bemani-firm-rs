@@ -217,15 +217,20 @@ pub async fn rgb_task(
         };
 
         for i in 0..NUM_LEDS {
-            let loc_percent = i * 100 / NUM_LEDS;
-            let rot_percent = ((encoder_val % RAW_TARGET_STEPS * 100) / RAW_TARGET_STEPS) as usize;
-
-            let new_pos = (loc_percent + rot_percent) % 100;
-            hsv.hue = ((new_pos * 255) / 100) as u8;
+            hsv.hue = 0;
+            hsv.val = if i == 0 { 255 } else { 0 };
             data[i] = hsv2rgb(hsv);
         }
 
-        hue += 1;
+        let rot_percent = (encoder_val % RAW_TARGET_STEPS * 100) / RAW_TARGET_STEPS;
+
+        if rot_percent < 0 {
+            data.rotate_left((rot_percent + 100) as usize * NUM_LEDS / 100);
+        } else {
+            data.rotate_right(rot_percent as usize * NUM_LEDS / 100);
+        }
+
+        // hue += 1;
 
         rgb_strip.write(&data).await;
 
