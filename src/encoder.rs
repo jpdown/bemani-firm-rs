@@ -29,10 +29,12 @@ use embassy_sync::watch::Sender;
 use fixed::traits::ToFixed;
 
 const PPR: i32 = 360 * 4;
-pub const TARGET_STEPS: i32 = 144;
+const TARGET_STEPS: i32 = 144;
 
 const THRESHOLD: i32 = (PPR) / gcd(PPR, TARGET_STEPS);
 const ENCODER_STEP: i32 = TARGET_STEPS / gcd(PPR, TARGET_STEPS);
+
+pub const RAW_TARGET_STEPS: i32 = THRESHOLD * TARGET_STEPS;
 
 const fn gcd(n: i32, m: i32) -> i32 {
     if m == 0 { n } else { gcd(m, n % m) }
@@ -150,7 +152,8 @@ pub async fn encoder_task(
     pio: Peri<'static, PIO0>,
     pin_0: Peri<'static, PIN_0>,
     pin_1: Peri<'static, PIN_1>,
-    output: Sender<'static, CriticalSectionRawMutex, u8, 2>,
+    output: &'static Signal<CriticalSectionRawMutex, u8>,
+    output_raw: &'static Signal<CriticalSectionRawMutex, i32>,
 ) {
     let Pio {
         mut common, sm0, ..
@@ -181,13 +184,19 @@ pub async fn encoder_task(
 
         if last_value != new_reading {
             debug!(
-                "threshold {} encoder_step {} raw {} rolling {} game reported {}",
-                THRESHOLD, ENCODER_STEP, new_reading, rolling_delta, game_reported_value
+                "threshold {} encoder_step {} raw {} raw target {} rolling {} game reported {}",
+                THRESHOLD,
+                ENCODER_STEP,
+                new_reading,
+                RAW_TARGET_STEPS,
+                rolling_delta,
+                game_reported_value
             );
         }
 
         last_value = new_reading;
 
-        output.send(game_reported_value);
+        output.signal(game_reported_value);
+        output_raw.signal(new_reading);
     }
 }

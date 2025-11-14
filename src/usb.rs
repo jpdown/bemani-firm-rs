@@ -57,7 +57,7 @@ bind_interrupts!(struct Irqs {
 pub async fn usb_task(
     usb: Peri<'static, USB>,
     buttons: &'static Signal<CriticalSectionRawMutex, u16>,
-    mut encoder: Receiver<'static, CriticalSectionRawMutex, u8, 2>,
+    mut encoder: &'static Signal<CriticalSectionRawMutex, u8>,
 ) {
     let driver = Driver::new(usb, Irqs);
 
@@ -109,7 +109,7 @@ pub async fn usb_task(
         loop {
             let buttons_report = buttons.wait().await;
 
-            encoder_reading = match encoder.try_get() {
+            encoder_reading = match encoder.try_take() {
                 None => encoder_reading,
                 Some(x) => x,
             };

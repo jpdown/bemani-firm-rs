@@ -28,7 +28,8 @@ static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
 static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
 
 static BUTTON_SIGNAL: Signal<CriticalSectionRawMutex, u16> = Signal::new();
-static ENCODER_WATCH: Watch<CriticalSectionRawMutex, u8, 2> = Watch::new();
+static ENCODER_SIGNAL: Signal<CriticalSectionRawMutex, u8> = Signal::new();
+static ENCODER_RAW_SIGNAL: Signal<CriticalSectionRawMutex, i32> = Signal::new();
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
@@ -67,7 +68,7 @@ fn main() -> ! {
                     rgb_buttons,
                     p.DMA_CH0,
                     p.DMA_CH1,
-                    ENCODER_WATCH.receiver().unwrap(),
+                    &ENCODER_RAW_SIGNAL
                 )));
             });
         },
@@ -75,17 +76,14 @@ fn main() -> ! {
 
     let executor0 = EXECUTOR0.init(Executor::new());
     executor0.run(|spawner| {
-        unwrap!(spawner.spawn(usb_task(
-            p.USB,
-            &BUTTON_SIGNAL,
-            ENCODER_WATCH.receiver().unwrap()
-        )));
+        unwrap!(spawner.spawn(usb_task(p.USB, &BUTTON_SIGNAL, &ENCODER_SIGNAL)));
         unwrap!(spawner.spawn(button_task(buttons, &BUTTON_SIGNAL)));
         unwrap!(spawner.spawn(encoder_task(
             p.PIO0,
             p.PIN_0,
             p.PIN_1,
-            ENCODER_WATCH.sender()
+            &ENCODER_SIGNAL,
+            &ENCODER_RAW_SIGNAL
         )));
     })
 }

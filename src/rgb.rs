@@ -28,6 +28,7 @@ use embassy_rp::pio::program::pio_asm;
 use embassy_rp::pio_programs::ws2812::PioWs2812;
 use embassy_rp::pio_programs::ws2812::PioWs2812Program;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::signal::Signal;
 use embassy_sync::watch::Receiver;
 use embassy_time::Duration;
 use embassy_time::Ticker;
@@ -37,7 +38,7 @@ use smart_leds::RGB8;
 use smart_leds::hsv::Hsv;
 use smart_leds::hsv::hsv2rgb;
 
-use crate::encoder::TARGET_STEPS;
+use crate::encoder::RAW_TARGET_STEPS;
 
 bind_interrupts!(struct Irqs {
     PIO1_IRQ_0 => InterruptHandler<PIO1>;
@@ -45,8 +46,6 @@ bind_interrupts!(struct Irqs {
 
 const HUE_CYCLE_TIME_MS: u64 = 3500;
 const TICKER_TIME_MS: u64 = HUE_CYCLE_TIME_MS / 256;
-const TURNTABLE_BRIGHT_SPOTS: u64 = 3;
-const TURNTABLE_BRIGHTNESS_WIDTH: u64 = 2;
 const T1: u8 = 2; // start bit
 const T2: u8 = 5; // data bit
 const T3: u8 = 3; // stop bit
@@ -177,7 +176,7 @@ pub async fn rgb_task(
     button_pins: RGBButtonPins,
     dma_strip: Peri<'static, DMA_CH0>,
     dma_buttons: Peri<'static, DMA_CH1>,
-    mut encoder_signal: Receiver<'static, CriticalSectionRawMutex, u8, 2>,
+    mut encoder_signal: &'static Signal<CriticalSectionRawMutex, i32>,
 ) {
     let Pio {
         mut common,
@@ -212,15 +211,14 @@ pub async fn rgb_task(
             val: 255,
         };
 
-        encoder_val = match encoder_signal.try_get() {
+        encoder_val = match encoder_signal.try_take() {
             None => encoder_val,
             Some(x) => x,
         };
 
         for i in 0..NUM_LEDS {
             let loc_percent = i * 100 / NUM_LEDS;
-            let rot_percent =
-                (encoder_val as usize % TARGET_STEPS as usize) * 100 / TARGET_STEPS as usize;
+            let rot_percent = ((encoder_val % RAW_TARGET_STEPS * 100) / RAW_TARGET_STEPS) as usize;
 
             let new_pos = (loc_percent + rot_percent) % 100;
             hsv.hue = ((new_pos * 255) / 100) as u8;
