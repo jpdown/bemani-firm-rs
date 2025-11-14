@@ -11,9 +11,10 @@ use embassy_rp::pio_programs::rotary_encoder::PioEncoder;
 use embassy_rp::pio_programs::rotary_encoder::PioEncoderProgram;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
+use embassy_sync::watch::Sender;
 
 const PPR: u16 = 360;
-const TARGET_STEPS: u16 = 144;
+pub const TARGET_STEPS: u16 = 144;
 
 // TODO: make the encoder do quarter steps so this math is nicer
 const THRESHOLD: u8 = ((PPR) / gcd(PPR, TARGET_STEPS)) as u8;
@@ -32,7 +33,7 @@ pub async fn encoder_task(
     pio: Peri<'static, PIO0>,
     pin_0: Peri<'static, PIN_0>,
     pin_1: Peri<'static, PIN_1>,
-    output: &'static Signal<CriticalSectionRawMutex, u8>,
+    output: Sender<'static, CriticalSectionRawMutex, u8, 2>,
 ) {
     let Pio {
         mut common, sm0, ..
@@ -63,6 +64,6 @@ pub async fn encoder_task(
             rolling_delta, game_reported_value
         );
 
-        output.signal(game_reported_value);
+        output.send(game_reported_value);
     }
 }

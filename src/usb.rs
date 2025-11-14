@@ -10,6 +10,7 @@ use embassy_rp::usb::Driver;
 use embassy_rp::usb::InterruptHandler;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
+use embassy_sync::watch::Receiver;
 use embassy_usb::Builder;
 use embassy_usb::Config;
 use embassy_usb::Handler;
@@ -56,7 +57,7 @@ bind_interrupts!(struct Irqs {
 pub async fn usb_task(
     usb: Peri<'static, USB>,
     buttons: &'static Signal<CriticalSectionRawMutex, u16>,
-    encoder: &'static Signal<CriticalSectionRawMutex, u8>,
+    mut encoder: Receiver<'static, CriticalSectionRawMutex, u8, 2>,
 ) {
     let driver = Driver::new(usb, Irqs);
 
@@ -108,7 +109,7 @@ pub async fn usb_task(
         loop {
             let buttons_report = buttons.wait().await;
 
-            encoder_reading = match encoder.try_take() {
+            encoder_reading = match encoder.try_get() {
                 None => encoder_reading,
                 Some(x) => x,
             };
