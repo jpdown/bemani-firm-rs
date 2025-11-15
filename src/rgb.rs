@@ -29,7 +29,6 @@ use embassy_rp::pio_programs::ws2812::PioWs2812;
 use embassy_rp::pio_programs::ws2812::PioWs2812Program;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
-use embassy_sync::watch::Receiver;
 use embassy_time::Duration;
 use embassy_time::Ticker;
 use embassy_time::Timer;
@@ -38,7 +37,7 @@ use smart_leds::RGB8;
 use smart_leds::hsv::Hsv;
 use smart_leds::hsv::hsv2rgb;
 
-use crate::encoder::RAW_TARGET_STEPS;
+use crate::encoder::PPR;
 
 bind_interrupts!(struct Irqs {
     PIO1_IRQ_0 => InterruptHandler<PIO1>;
@@ -87,7 +86,6 @@ impl<'d, T: Instance, const SM: usize, const NUM_STRIPS: usize>
     ParallelWs2812<'d, T, SM, NUM_STRIPS>
 {
     pub fn new(
-        pio: &mut Common<'d, T>,
         mut sm: StateMachine<'d, T, SM>,
         pins: [Pin<'d, T>; NUM_STRIPS],
         dma: Peri<'d, impl Channel>,
@@ -176,7 +174,7 @@ pub async fn rgb_task(
     button_pins: RGBButtonPins,
     dma_strip: Peri<'static, DMA_CH0>,
     dma_buttons: Peri<'static, DMA_CH1>,
-    mut encoder_signal: &'static Signal<CriticalSectionRawMutex, i32>,
+    encoder_signal: &'static Signal<CriticalSectionRawMutex, i32>,
 ) {
     let Pio {
         mut common,
@@ -198,11 +196,10 @@ pub async fn rgb_task(
     let prg = PioWs2812Program::new(&mut common);
     let mut rgb_strip = PioWs2812::new(&mut common, sm0, dma_strip, strip_pin, &prg);
     let prg_parallel = ParallelWs2812Program::new(&mut common);
-    let mut rgb_buttons =
-        ParallelWs2812::new(&mut common, sm1, button_pins, dma_buttons, &prg_parallel);
+    let mut rgb_buttons = ParallelWs2812::new(sm1, button_pins, dma_buttons, &prg_parallel);
 
     let mut ticker = Ticker::every(Duration::from_millis(TICKER_TIME_MS));
-    let mut hue = 0;
+    let hue = 0;
     let mut encoder_val = 0;
     loop {
         let mut hsv = Hsv {
@@ -222,7 +219,7 @@ pub async fn rgb_task(
             data[i] = hsv2rgb(hsv);
         }
 
-        let rot_percent = (encoder_val % RAW_TARGET_STEPS * 100) / RAW_TARGET_STEPS;
+        let rot_percent = (encoder_val % PPR * 100) / PPR;
 
         if rot_percent < 0 {
             data.rotate_left((rot_percent + 100) as usize * NUM_LEDS / 100);

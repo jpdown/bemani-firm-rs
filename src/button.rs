@@ -1,3 +1,4 @@
+use defmt::debug;
 use embassy_rp::{
     Peri,
     gpio::{AnyPin, Input},
@@ -60,6 +61,7 @@ pub async fn button_task(gpio: ButtonGPIO, output: &'static Signal<CriticalSecti
     loop {
         poll_buttons(&mut buttons);
         let bits = buttons_to_bitstring(buttons.as_slice());
+        // debug!("{}", bits);
         output.signal(bits);
         ticker.next().await;
     }

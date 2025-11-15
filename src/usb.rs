@@ -1,5 +1,6 @@
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering;
+use defmt::debug;
 use defmt::info;
 use defmt::warn;
 use embassy_futures::join::join;
@@ -10,7 +11,6 @@ use embassy_rp::usb::Driver;
 use embassy_rp::usb::InterruptHandler;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
-use embassy_sync::watch::Receiver;
 use embassy_usb::Builder;
 use embassy_usb::Config;
 use embassy_usb::Handler;
@@ -57,8 +57,9 @@ bind_interrupts!(struct Irqs {
 pub async fn usb_task(
     usb: Peri<'static, USB>,
     buttons: &'static Signal<CriticalSectionRawMutex, u16>,
-    mut encoder: &'static Signal<CriticalSectionRawMutex, u8>,
+    encoder: &'static Signal<CriticalSectionRawMutex, u8>,
 ) {
+    debug!("in usb task");
     let driver = Driver::new(usb, Irqs);
 
     let mut config = Config::new(0x1CCF, 0x8048);
@@ -98,8 +99,12 @@ pub async fn usb_task(
     // Build the builder.
     let mut usb = builder.build();
 
+    debug!("built usb descriptor");
+
     // Run the USB device.
     let usb_fut = usb.run();
+
+    debug!("running usb device");
 
     let (reader, mut writer) = hid.split();
 

@@ -1,11 +1,7 @@
-use core::num;
-
 use defmt::debug;
 use embassy_rp::Peri;
 use embassy_rp::bind_interrupts;
 use embassy_rp::clocks::clk_sys_freq;
-use embassy_rp::dma::AnyChannel;
-use embassy_rp::dma::Channel;
 use embassy_rp::peripherals::PIN_0;
 use embassy_rp::peripherals::PIN_1;
 use embassy_rp::peripherals::PIO0;
@@ -20,21 +16,18 @@ use embassy_rp::pio::Pio;
 use embassy_rp::pio::ShiftDirection;
 use embassy_rp::pio::StateMachine;
 use embassy_rp::pio::program::pio_asm;
-use embassy_rp::pio_programs::rotary_encoder::Direction;
-use embassy_rp::pio_programs::rotary_encoder::PioEncoder;
-use embassy_rp::pio_programs::rotary_encoder::PioEncoderProgram;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
-use embassy_sync::watch::Sender;
 use fixed::traits::ToFixed;
 
-const PPR: i32 = 360 * 4;
+pub const PPR: i32 = 360 * 4;
 const TARGET_STEPS: i32 = 144;
 
 const THRESHOLD: i32 = (PPR) / gcd(PPR, TARGET_STEPS);
 const ENCODER_STEP: i32 = TARGET_STEPS / gcd(PPR, TARGET_STEPS);
 
-pub const RAW_TARGET_STEPS: i32 = THRESHOLD * TARGET_STEPS;
+const EXPECTED_MAX_ROTATIONS_PER_SECOND: u32 = 50;
+const REQUIRED_SAMPLE_CLOCK_RATE: u32 = PPR as u32 * 10 * EXPECTED_MAX_ROTATIONS_PER_SECOND;
 
 const fn gcd(n: i32, m: i32) -> i32 {
     if m == 0 { n } else { gcd(m, n % m) }
@@ -104,7 +97,6 @@ pub struct QuadratureEncoder<'d, T: Instance, const SM: usize> {
 
 impl<'d, T: Instance, const SM: usize> QuadratureEncoder<'d, T, SM> {
     pub fn new(
-        pio: &mut Common<'d, T>,
         mut sm: StateMachine<'d, T, SM>,
         mut pin_0: Pin<'d, T>,
         mut pin_1: Pin<'d, T>,
@@ -129,7 +121,15 @@ impl<'d, T: Instance, const SM: usize> QuadratureEncoder<'d, T, SM> {
 
         cfg.fifo_join = FifoJoin::Duplex;
 
-        cfg.clock_divider = 1.to_fixed();
+        let clock_freq = clk_sys_freq();
+
+        let divider = clock_freq / REQUIRED_SAMPLE_CLOCK_RATE;
+
+        cfg.clock_divider = divider.to_fixed();
+        debug!(
+            "clock freq {} requested rate {} clock divider {}",
+            clock_freq, REQUIRED_SAMPLE_CLOCK_RATE, divider
+        );
 
         sm.set_config(&cfg);
         sm.set_enable(true);
@@ -163,7 +163,7 @@ pub async fn encoder_task(
     let pin_1 = common.make_pio_pin(pin_1);
 
     let prg = QuadratureEncoderProgram::new(&mut common);
-    let mut encoder_0 = QuadratureEncoder::new(&mut common, sm0, pin_0, pin_1, &prg);
+    let mut encoder_0 = QuadratureEncoder::new(sm0, pin_0, pin_1, &prg);
 
     let mut last_value: i32 = 0;
     let mut rolling_delta: i32 = 0;
@@ -182,17 +182,12 @@ pub async fn encoder_task(
             game_reported_value -= 1;
         }
 
-        if last_value != new_reading {
-            debug!(
-                "threshold {} encoder_step {} raw {} raw target {} rolling {} game reported {}",
-                THRESHOLD,
-                ENCODER_STEP,
-                new_reading,
-                RAW_TARGET_STEPS,
-                rolling_delta,
-                game_reported_value
-            );
-        }
+        // if last_value != new_reading {
+        //     debug!(
+        //         "threshold {} encoder_step {} raw {} rolling {} game reported {}",
+        //         THRESHOLD, ENCODER_STEP, new_reading, rolling_delta, game_reported_value
+        //     );
+        // }
 
         last_value = new_reading;
 

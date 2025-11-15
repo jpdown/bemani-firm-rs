@@ -8,10 +8,10 @@ mod rgb;
 mod usb;
 
 use defmt::*;
-use embassy_executor::{Executor, Spawner};
+use embassy_executor::Executor;
 use embassy_rp::multicore::{Stack, spawn_core1};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, watch::Watch};
 use rgb::rgb_task;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
